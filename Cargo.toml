@@ -1,0 +1,11 @@
+[package]
+name = "xdelta"
+version = "0.1.0"
+authors = ["Randy von der Weide <randy@vonderweide.nl>"]
+license = "MIT/Apache-2.0"
+build = "build.rs"
+
+[dependencies]
+
+[build-dependencies]
+pkg-config = "^0.3"

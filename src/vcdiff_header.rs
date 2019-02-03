@@ -7,17 +7,17 @@ pub struct CodeTable {
 
 #[derive(Debug)]
 pub struct Header {
-  header: [u8;4],
-  hdr_indicator: u8,
-  secondary_compressor_id: Option<u8>,
-  code_table_length: Option<u64>,
-  code_table: Option<CodeTable>,
-  appheader_size: Option<u8>,
-  appheader: Vec<u8>
+  pub header: [u8;4],
+  pub hdr_indicator: u8, //Something like the version afaik.
+  pub secondary_compressor_id: Option<u8>, // number 2 is LZMA2
+  pub code_table_length: Option<u64>,
+  pub code_table: Option<CodeTable>,
+  pub appheader_size: Option<u8>,
+  pub appheader: Vec<u8>
 }
 
 impl Header {
-  pub fn new(bytes: &mut std::io::Bytes<std::fs::File>) -> Header {
+  pub fn new(bytes: &mut std::iter::Peekable<std::io::Bytes<std::fs::File>>) -> Header {
     let mut header = Header {
       header: [bytes.next().unwrap().unwrap(),
                bytes.next().unwrap().unwrap(),
@@ -59,7 +59,7 @@ pub struct DecodeResult {
   bytes_read: usize,
 }
 
-fn decode_base7_int(bytes: &mut std::io::Bytes<std::fs::File>) -> DecodeResult {
+fn decode_base7_int(bytes: &mut std::iter::Peekable<std::io::Bytes<std::fs::File>>) -> DecodeResult {
   let mut result : u64 = 0;
   let mut not_finished : bool = true;
   let mut counter = 0;

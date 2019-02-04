@@ -1,6 +1,4 @@
 use std::io;
-use nom::IResult;
-use varint::VarIntDecode;
 
 static VCD_SELF: u8 = 0x00;
 static VCD_HERE: u8 = 0x01;
@@ -38,20 +36,23 @@ impl AddressCache {
         self.same[(addr % same_len) as usize] = addr;
     }
 
-    pub fn decode<'a>(
-        &mut self,
-        here: u64,
-        mode: u8,
-        input: &'a [u8],
-    ) -> Result<(&'a [u8], u64), io::Error> {
+    pub fn decode<'a>(&mut self, here: u64, mode: u8, input: &'a [u8] ) -> Result<(&'a [u8], u64), io::Error> {
         fn varint<'a>(input: &'a [u8]) -> Result<(&'a [u8], u64), io::Error> {
-            match u64::decode_varint(input) {
-                IResult::Done(r, sz) => Ok((r, sz)),
-                _ => Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "unable to get instruction address",
-                )),
+            let mut result : u64 = 0;
+            let mut not_finished : bool = true;
+            let mut counter = 0;
+            while not_finished {
+                if counter == 10 || counter == (input.len() + 1) {
+                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "unable to get instruction address"));
+                }
+                let next_byte = input[counter];
+                counter += 1;
+                result = (result << 7) | (next_byte as u64 & 127);
+                if (next_byte & 128) == 0 {
+                    not_finished = false;
+                }
             }
+            return Ok((&input[counter..], result));
         }
 
         fn one<'a>(input: &'a [u8]) -> Result<(&'a [u8], u64), io::Error> {

@@ -1,4 +1,3 @@
-use nom::{ErrorKind, IResult, Needed};
 use std::fmt;
 
 #[derive(Debug, Copy, Clone)]
@@ -27,9 +26,9 @@ impl fmt::Debug for CodeTable {
 }
 
 impl CodeTable {
-    pub fn decode(bytes: &[u8]) -> IResult<&[u8], CodeTable> {
+    pub fn decode(bytes: &[u8]) -> Option<CodeTable> {
         if bytes.len() != 256 * 3 * 2 {
-            return IResult::Incomplete(Needed::Size(256 * 3 * 2));
+            return None;
         }
 
         let res = (|| -> Result<CodeTable, u32> {
@@ -68,8 +67,8 @@ impl CodeTable {
         })();
 
         match res {
-            Ok(code_table) => IResult::Done(&bytes[256 * 3 * 2..], code_table),
-            Err(n) => IResult::Error(ErrorKind::Custom(n)),
+            Ok(code_table) => Some(code_table),
+            Err(n) => None,
         }
     }
 

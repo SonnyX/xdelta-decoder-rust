@@ -74,10 +74,7 @@ impl Window {
     window
   }
 
-  pub fn execute(&mut self, target: &mut std::fs::File) {
-    
-  }
-  pub fn decode_window(self, mut original: Option<&mut std::fs::File>, target: &mut std::fs::File) -> Result<(), std::io::Error> {
+  pub fn decode_window(self, original: &mut Option<std::fs::File>, target: &mut std::fs::File) -> Result<(), std::io::Error> {
     let mut remaining_adds_runs = &self.data[..];
     let mut remaining_addresses = &self.addresses[..];
     let mut target_data = Vec::with_capacity(self.target_window_length as usize);

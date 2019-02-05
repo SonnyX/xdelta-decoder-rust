@@ -15,12 +15,15 @@ use lzma_stream_wrapper::LzmaStreamWrapper;
 
 use std::io::Read;
 use std::fs::OpenOptions;
+use std::path::Path;
 
-fn main() {
-  let mut source = OpenOptions::new().read(true).open("/home/sonny/git/CNC-Walls-patched.udk").unwrap();
-  let patch = OpenOptions::new().read(true).open("/home/sonny/git/B40C03E87FC7A66FF7B29AC3026E6EED636A8B6F84185A536FD637481E18F01F_from_996FB03AB19139EDF45E117AC3C57152DEEC16444654E03B447F35A92B104FAB").unwrap();
-  //let patch = OpenOptions::new().read(true).open("/home/sonny/git/RenegadeX-patcher-lib/RenegadeX/patcher/07029D635639910C405FD5D9B89A7D77AFFE5675C7AB05848813900E146E9646").unwrap();
-  let mut target_file = OpenOptions::new().read(true).write(true).create(true).open("/home/sonny/git/CNC-Walls-patched.udk").unwrap();
+pub fn decode_file<P: AsRef<Path>>(source_file_path: Option<P>, patch_file_path: P, target_file_path: P) {
+  let mut source = match source_file_path {
+    Some(path) => Some(OpenOptions::new().read(true).open(path).unwrap()),
+    None => None
+  };
+  let patch = OpenOptions::new().read(true).open(patch_file_path).unwrap();
+  let mut target = OpenOptions::new().read(true).write(true).create(true).open(target_file_path).unwrap();
   let mut bytes = patch.try_clone().unwrap().bytes().peekable();
 
   //read header
@@ -28,11 +31,11 @@ fn main() {
 
   //initialize lzma-decompressor-streams
   let mut data_stream = LzmaStreamWrapper::new();
-  data_stream.stream_decoder(std::u64::MAX, 0);
+  data_stream.stream_decoder(std::u64::MAX, 0).unwrap();
   let mut instructions_stream = LzmaStreamWrapper::new();
-  instructions_stream.stream_decoder(std::u64::MAX, 0);
+  instructions_stream.stream_decoder(std::u64::MAX, 0).unwrap();
   let mut addresses_stream = LzmaStreamWrapper::new();
-  addresses_stream.stream_decoder(std::u64::MAX, 0);
+  addresses_stream.stream_decoder(std::u64::MAX, 0).unwrap();
 
   //read windows
   while bytes.peek().is_some() {
@@ -74,7 +77,7 @@ fn main() {
       }
       window.delta_indicator = 0;
     }
-    window.decode_window(Some(&mut source), &mut target_file);
+    window.decode_window(&mut source, &mut target).unwrap();
     //println!("{:?}", window);
     //println!("{:?}",decoded_data);
     //println!("{:?}",result);

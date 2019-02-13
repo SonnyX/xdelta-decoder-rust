@@ -1,10 +1,11 @@
-use lzma_sys::*;
 use std::convert::From;
 use std::result::Result;
 use std::error;
 use std::fmt;
 use std::error::Error as StdError;
 use std::io::Error as IoError;
+
+use super::{lzma_ret};
 
 
 /// An error produced by an operation on LZMA data

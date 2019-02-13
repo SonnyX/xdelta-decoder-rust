@@ -1,6 +1,8 @@
 use std::os::raw::c_void;
 use std::mem;
 
+pub mod lzma_error;
+pub mod lzma_stream_wrapper;
 
 #[repr(C)]
 #[derive(Debug)]

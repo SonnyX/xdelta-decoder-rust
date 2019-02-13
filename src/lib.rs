@@ -1,6 +1,4 @@
-mod lzma_error;
-mod lzma_sys;
-mod lzma_stream_wrapper;
+extern crate lzma_sys;
 
 mod vcdiff_header;
 mod vcdiff_window;

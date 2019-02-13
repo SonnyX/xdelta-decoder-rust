@@ -1,8 +1,13 @@
 [package]
-name = "xdelta"
+name = "lzma-sys"
 version = "0.1.0"
 authors = ["Randy von der Weide <randy@vonderweide.nl>"]
 license = "MIT/Apache-2.0"
+build = "build.rs"
 
 [dependencies]
-lzma-sys = { path = "lzma-sys", version = "0.1.0" }
+
+[build-dependencies]
+cc = "1.0.29"
+pkg-config = "0.3.14"
+

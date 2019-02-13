@@ -1,6 +1,6 @@
 //! Wraps the underlying FFI struct `lzma_stream` to provide various safety guarantees, like the Send trait.
 
-use lzma_sys::*;
+use super::{lzma_end, lzma_code, lzma_action, lzma_auto_decoder, lzma_stream};
 use lzma_error::{LzmaError, LzmaLibResult};
 use std::ptr;
 use std::ops::Drop;

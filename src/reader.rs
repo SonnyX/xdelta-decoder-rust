@@ -34,7 +34,9 @@ impl Reader {
         {
             match self.fill_buf() {
                 Ok(array) => {
-                    next = Some(array[0]);
+                    if array.len() != 0 {
+                      next = Some(array[0]);
+                    }
                 },
                 Err(_e) => {}
             }

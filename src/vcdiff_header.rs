@@ -1,3 +1,6 @@
+use reader::Reader;
+use std::io::{Seek,Read};
+
 #[derive(Debug)]
 pub struct CodeTable {
   near_cache_size: u8,
@@ -12,18 +15,18 @@ pub struct Header {
   pub secondary_compressor_id: Option<u8>, // number 2 is LZMA2
   pub code_table_length: Option<u64>,
   pub code_table: Option<CodeTable>,
-  pub appheader_size: Option<u8>,
+  pub appheader_size: Option<u64>,
   pub appheader: Vec<u8>
 }
 
 impl Header {
-  pub fn new(bytes: &mut std::iter::Peekable<std::io::Bytes<std::fs::File>>) -> Header {
+  pub fn new(bytes: &mut Reader) -> Header {
     let mut header = Header {
-      header: [bytes.next().unwrap().unwrap(),
-               bytes.next().unwrap().unwrap(),
-               bytes.next().unwrap().unwrap(),
-               bytes.next().unwrap().unwrap()],
-      hdr_indicator: bytes.next().unwrap().unwrap(),
+      header: [bytes.next().unwrap(),
+               bytes.next().unwrap(),
+               bytes.next().unwrap(),
+               bytes.next().unwrap()],
+      hdr_indicator: bytes.next().unwrap(),
       secondary_compressor_id: None,
       code_table_length: None,
       code_table: None,
@@ -31,49 +34,27 @@ impl Header {
       appheader: Vec::new(),
     };
     if header.hdr_indicator % 2 >= 1 { //VCD_SECONDARY
-      header.secondary_compressor_id = Some(bytes.next().unwrap().unwrap());
+      header.secondary_compressor_id = Some(bytes.next().unwrap());
     }
     if header.hdr_indicator % 4 >= 2 { //VCD_CODETABLE
-      header.code_table_length = decode_base7_int(bytes).result;
+      header.code_table_length = bytes.decode_base7_int().result;
       let mut code_table = CodeTable{
-                                 near_cache_size: bytes.next().unwrap().unwrap(),
-                                 same_cache_size: bytes.next().unwrap().unwrap(),
-                                 compressed_data: Vec::new()
+                                 near_cache_size: bytes.next().unwrap(),
+                                 same_cache_size: bytes.next().unwrap(),
+                                 compressed_data: Vec::with_capacity(header.code_table_length.unwrap() as usize)
                                };
-      for i in 0..header.code_table_length.unwrap() {
-        code_table.compressed_data.push(bytes.next().unwrap().unwrap());
-      }
+      bytes.seek(std::io::SeekFrom::Current(0)).unwrap();
+      code_table.compressed_data.resize(header.code_table_length.unwrap() as usize,0);
+      bytes.read(&mut code_table.compressed_data).unwrap();
       header.code_table = Some(code_table);
     }
     if header.hdr_indicator % 8 >= 4 { //VCD_APPHEADER
-      header.appheader_size = Some(bytes.next().unwrap().unwrap());
+      header.appheader_size = bytes.decode_base7_int().result;
+      bytes.seek(std::io::SeekFrom::Current(0)).unwrap();
       header.appheader = Vec::with_capacity(header.appheader_size.unwrap() as usize);
+      header.appheader.resize(header.appheader_size.unwrap() as usize,0);
+      bytes.read(&mut header.appheader).unwrap();
     }
     header
   }
 }
-
-#[derive(Debug)]
-pub struct DecodeResult {
-  result: Option<u64>,
-  bytes_read: usize,
-}
-
-fn decode_base7_int(bytes: &mut std::iter::Peekable<std::io::Bytes<std::fs::File>>) -> DecodeResult {
-  let mut result : u64 = 0;
-  let mut not_finished : bool = true;
-  let mut counter = 0;
-  while not_finished {
-    if counter == 10 {
-      return DecodeResult { result: None, bytes_read: counter };
-    }
-    counter += 1;
-    let next_byte = bytes.next().unwrap().unwrap();
-    result = (result << 7) | (next_byte as u64 & 127);
-    if (next_byte & 128) == 0 {
-      not_finished = false;
-    }
-  }
-  return DecodeResult { result: Some(result), bytes_read: counter };
-}
-

@@ -4,14 +4,15 @@ mod vcdiff_header;
 mod vcdiff_window;
 mod vcdiff_address_cache;
 mod vcdiff_code_table;
+mod reader;
 
 use vcdiff_header::Header;
 use vcdiff_window::Window;
 
 use lzma_sys::*;
 use lzma_stream_wrapper::LzmaStreamWrapper;
+use reader::Reader;
 
-use std::io::Read;
 use std::fs::OpenOptions;
 use std::path::Path;
 
@@ -22,7 +23,7 @@ pub fn decode_file<P: AsRef<Path>>(source_file_path: Option<P>, patch_file_path:
   };
   let patch = OpenOptions::new().read(true).open(patch_file_path).unwrap();
   let mut target = OpenOptions::new().read(true).write(true).create(true).open(target_file_path).unwrap();
-  let mut bytes = patch.try_clone().unwrap().bytes().peekable();
+  let mut bytes = Reader::with_capacity(200,patch);
 
   //read header
   let header = Header::new(&mut bytes);
@@ -38,6 +39,7 @@ pub fn decode_file<P: AsRef<Path>>(source_file_path: Option<P>, patch_file_path:
   //read windows
   while bytes.peek().is_some() {
     let mut window = Window::new(&mut bytes);
+
     if header.secondary_compressor_id == Some(2) {
       //decompress lzma2
       if window.delta_indicator % 2 >= 1 {
@@ -76,9 +78,6 @@ pub fn decode_file<P: AsRef<Path>>(source_file_path: Option<P>, patch_file_path:
       window.delta_indicator = 0;
     }
     window.decode_window(&mut source, &mut target).unwrap();
-    //println!("{:?}", window);
-    //println!("{:?}",decoded_data);
-    //println!("{:?}",result);
   }
 }
 
@@ -104,4 +103,14 @@ pub fn decode_base7_int(bytes: &mut std::slice::Iter<'_, u8>) -> DecodeResult {
     }
   }
   return DecodeResult { result: Some(result), bytes_read: counter };
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  #[test]
+  fn window_size() {
+    decode_file(None, "/home/sonny/git/xdelta-decoder-rust/D1DECD86ECAFC8A8389C7DE49DC27DEA429C6C81E519CEB5815844C71BB8A83A", "/home/sonny/git/xdelta-decoder-rust/lol.map");
+    assert!(true);
+  }
 }

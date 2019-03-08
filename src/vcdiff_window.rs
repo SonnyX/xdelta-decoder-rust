@@ -1,14 +1,13 @@
 use vcdiff_address_cache::AddressCache;
 use vcdiff_code_table::{InstructionType,Instruction,CodeTable};
-//use std::io;
 use std::io::{Read,Write,Seek};
+use reader::Reader;
 
-#[derive(Debug)]
 pub struct Window {
   window_indicator: u8, //VCD_SOURCE, VCD_TARGET, VCD_ADLER32
   source_segment: Option<(u64,u64)>, //unimplemented behavior
   delta_encoding_length: u64, // size/length of the entire struct
-  target_window_length: u64, // size of ??
+  pub target_window_length: u64, // size of ??
   pub delta_indicator: u8,
   pub data_length: u64,
   pub instructions_length: u64,
@@ -19,58 +18,74 @@ pub struct Window {
   pub addresses: Vec<u8>,
 }
 
+impl std::fmt::Debug for Window {
+  fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fmt.debug_struct("Window")
+     .field("window_indicator", &self.window_indicator)
+     .field("source_segment", &self.source_segment)
+     .field("delta_encoding_length", &self.delta_encoding_length)
+     .field("target_window_length", &self.target_window_length)
+     .field("delta_indicator", &self.delta_indicator)
+     .field("data_length", &self.data_length)
+     .field("instructions_length", &self.instructions_length)
+     .field("addresses_length", &self.addresses_length)
+     .field("d.i.a_length", &(&self.data_length + &self.instructions_length + &self.addresses_length))
+     .finish()
+  }
+}
+
 impl Window {
   /**
   * Creates a new Window instance and uses an iterator to fill it with the data of a vcdiff
   */
-  pub fn new(bytes: &mut std::iter::Peekable<std::io::Bytes<std::fs::File>>) -> Window {
+  pub fn new(bytes: &mut Reader) -> Window {
     let mut window = Window {
-      window_indicator: bytes.next().unwrap().unwrap(),
-      source_segment: None,
-      delta_encoding_length: 0,
-      target_window_length: 0,
-      delta_indicator: 0,
-      data_length: 0,
-      instructions_length: 0,
-      addresses_length: 0,
-      adler32_checksum: None,
-      data: Vec::new(),
+      window_indicator: bytes.next().unwrap(), //1 byte
+      source_segment: None,  //up to 20 bytes
+      delta_encoding_length: 0, //up to 10 bytes
+      target_window_length: 0, //up to 10 bytes
+      delta_indicator: 0, //one byte
+      data_length: 0,  //up to 10 bytes
+      instructions_length: 0, //up to 10 bytes
+      addresses_length: 0, //up to 10 bytes
+      adler32_checksum: None,  //4 bytes
+      data: Vec::new(),  
       instructions: Vec::new(),
       addresses: Vec::new(),
     };
     if window.window_indicator % 2 >= 1 || window.window_indicator % 4 >= 2 { //VCD_SOURCE || VCD_TARGET
-      window.source_segment = Some((decode_base7_int(bytes).result.unwrap(),decode_base7_int(bytes).result.unwrap()));
+      window.source_segment = Some((bytes.decode_base7_int().result.unwrap(), bytes.decode_base7_int().result.unwrap()));
     }
-    window.delta_encoding_length = decode_base7_int(bytes).result.unwrap();
-    window.target_window_length = decode_base7_int(bytes).result.unwrap();
-    window.delta_indicator = bytes.next().unwrap().unwrap();
-    window.data_length = decode_base7_int(bytes).result.unwrap();
-    window.instructions_length = decode_base7_int(bytes).result.unwrap();
-    window.addresses_length = decode_base7_int(bytes).result.unwrap();
+    window.delta_encoding_length = bytes.decode_base7_int().result.unwrap();
+    window.target_window_length = bytes.decode_base7_int().result.unwrap();
+    window.delta_indicator = bytes.next().unwrap();
+    window.data_length = bytes.decode_base7_int().result.unwrap();
+    window.instructions_length = bytes.decode_base7_int().result.unwrap();
+    window.addresses_length = bytes.decode_base7_int().result.unwrap();
     if window.window_indicator % 8 >= 4 { //VCD_ADLER32
-      window.adler32_checksum = Some([bytes.next().unwrap().unwrap(),
-                          bytes.next().unwrap().unwrap(),
-                          bytes.next().unwrap().unwrap(),
-                          bytes.next().unwrap().unwrap()]);
+      window.adler32_checksum = Some([bytes.next().unwrap(),
+                          bytes.next().unwrap(),
+                          bytes.next().unwrap(),
+                          bytes.next().unwrap()]);
     }
 
     // Data bytes
-    window.data.reserve(window.data_length as usize);
-    for n in 0..(window.data_length as usize) {
-      window.data.push(bytes.next().unwrap().unwrap());
-    }
+    bytes.seek(std::io::SeekFrom::Current(0)).unwrap();
+    window.data = Vec::with_capacity(window.data_length as usize);
+    window.data.resize(window.data_length as usize, 0);
+    bytes.read(&mut window.data).unwrap();
 
     // Instructions bytes
-    window.instructions.reserve(window.instructions_length as usize);
-    for n in 0..(window.instructions_length as usize) {
-      window.instructions.push(bytes.next().unwrap().unwrap());
-    }
+    window.instructions = Vec::with_capacity(window.instructions_length as usize);
+    window.instructions.resize(window.instructions_length as usize, 0);
+    bytes.read(&mut window.instructions).unwrap();
 
     // Addresses bytes
-    window.addresses.reserve(window.addresses_length as usize);
-    for n in 0..(window.addresses_length as usize) {
-      window.addresses.push(bytes.next().unwrap().unwrap());
-    }
+    window.addresses = Vec::with_capacity(window.addresses_length as usize);
+    window.addresses.resize(window.addresses_length as usize, 0);
+    bytes.read(&mut window.addresses).unwrap();
+
+    //return window
     window
   }
 
@@ -175,28 +190,4 @@ impl Window {
     target.write(&target_data)?;
     Ok(())
   }
-}
-
-#[derive(Debug)]
-pub struct DecodeResult {
-  result: Option<u64>,
-  bytes_read: usize,
-}
-
-pub fn decode_base7_int(bytes: &mut std::iter::Peekable<std::io::Bytes<std::fs::File>>) -> DecodeResult {
-  let mut result : u64 = 0;
-  let mut not_finished : bool = true;
-  let mut counter = 0;
-  while not_finished {
-    if counter == 10 {
-      return DecodeResult { result: None, bytes_read: counter };
-    }
-    counter += 1;
-    let next_byte = bytes.next().unwrap().unwrap();
-    result = (result << 7) | (next_byte as u64 & 127);
-    if (next_byte & 128) == 0 {
-      not_finished = false;
-    }
-  }
-  return DecodeResult { result: Some(result), bytes_read: counter };
 }

@@ -71,16 +71,18 @@ impl Window {
 
     // Data bytes
     bytes.seek(std::io::SeekFrom::Current(0)).unwrap();
-    window.data = Vec::with_capacity(window.data_length as usize);
+    window.data = Vec::with_capacity(1 + window.data_length as usize);
     window.data.resize(window.data_length as usize, 0);
     bytes.read(&mut window.data).unwrap();
 
     // Instructions bytes
+    bytes.seek(std::io::SeekFrom::Current(0)).unwrap();
     window.instructions = Vec::with_capacity(window.instructions_length as usize);
     window.instructions.resize(window.instructions_length as usize, 0);
     bytes.read(&mut window.instructions).unwrap();
 
     // Addresses bytes
+    bytes.seek(std::io::SeekFrom::Current(0)).unwrap();
     window.addresses = Vec::with_capacity(window.addresses_length as usize);
     window.addresses.resize(window.addresses_length as usize, 0);
     bytes.read(&mut window.addresses).unwrap();
@@ -93,12 +95,8 @@ impl Window {
     let mut remaining_adds_runs = &self.data[..];
     let mut remaining_addresses = &self.addresses[..];
     let mut target_data = Vec::with_capacity(self.target_window_length as usize);
-    //println!("Win indicator: {:02x}", self.window_indicator);
-    //target_data.resize(self.target_window_length as usize, 0);
-    //println!("target_window_length: {}", self.target_window_length);
     let mut address_cache = AddressCache::new(4,3);
     let window_header = &self;
-    //println!("Well this is embarrasing: {:?}", &self);
     if window_header.delta_indicator > 0 {
       Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "Unsupported compression type"))?;
     }
@@ -126,12 +124,10 @@ impl Window {
         }
         match inst.typ {
           InstructionType::Add => {
-            if size == 0 { println!("Add: size = {}", size) };
             target_data.extend_from_slice(&remaining_adds_runs[0..size]);
             remaining_adds_runs = &remaining_adds_runs[size..];
           }
           InstructionType::Copy => {
-            //println!("source_segment: {:?}", window_header.source_segment);
             let source_length = window_header.source_segment.map_or(0u64, |r| r.0);
             let (r, addr) = address_cache.decode((target_data.len() as u64) + source_length, inst.mode,remaining_addresses,)?;
             remaining_addresses = &r;
@@ -149,18 +145,14 @@ impl Window {
               if window_header.window_indicator % 2 >= 1 { //VCD_SOURCE
                 original.as_mut().unwrap().seek(std::io::SeekFrom::Start(pos + addr))?;
                 original.as_mut().unwrap().read(&mut target_data[target_pos..target_pos + size])?;
-                //println!("VCD_SOURCE: {:?}",&target_data[target_pos..target_pos + size]);
               } else {
                 let current = target.seek(std::io::SeekFrom::Current(0))?;
                 target.seek(std::io::SeekFrom::Start(pos + addr))?;
                 target.read(&mut target_data[target_pos..target_pos + size])?;
                 target.seek(std::io::SeekFrom::Start(current))?;
-                println!("VCD_TARGET: {:?}",&target_data[target_pos..target_pos + size]);
               }
             } else {
               let target_pos = (addr - source_length) as usize;
-              // probably quite slow...
-              //println!("iterating over: {}..{}", target_pos, target_pos + size);
               for idx in target_pos..target_pos + size {
                 let byte = target_data[idx];
                 target_data.push(byte);

@@ -104,13 +104,3 @@ pub fn decode_base7_int(bytes: &mut std::slice::Iter<'_, u8>) -> DecodeResult {
   }
   return DecodeResult { result: Some(result), bytes_read: counter };
 }
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  #[test]
-  fn window_size() {
-    decode_file(None, "/home/sonny/git/xdelta-decoder-rust/D1DECD86ECAFC8A8389C7DE49DC27DEA429C6C81E519CEB5815844C71BB8A83A", "/home/sonny/git/xdelta-decoder-rust/lol.map");
-    assert!(true);
-  }
-}

@@ -107,13 +107,11 @@ impl BufRead for Reader {
         // some more data from the underlying reader.
         // Branch using `>=` instead of the more correct `==`
         // to tell the compiler that the pos..cap slice is always valid.
-        //println!("{:?}", &self.buf);
         if self.pos >= self.cap {
             debug_assert!(self.pos == self.cap);
             self.cap = self.inner.read(&mut self.buf)?;
             self.pos = 0;
         }
-        //println!("{:?}", &self.buf[self.pos..self.cap]);
         Ok(&self.buf[self.pos..self.cap])
     }
 

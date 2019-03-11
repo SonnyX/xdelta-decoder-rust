@@ -5,9 +5,13 @@ authors = ["Randy von der Weide <randy@vonderweide.nl>"]
 license = "MIT/Apache-2.0"
 build = "build.rs"
 
+[lib]
+name = "lzma_sys"
+crate-type = ["rlib"]
+
 [dependencies]
 
 [build-dependencies]
-cc = "1.0.29"
+cc = "1.0.30"
 pkg-config = "0.3.14"
-
+vcpkg = "0.2.6"

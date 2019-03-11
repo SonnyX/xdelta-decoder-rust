@@ -1,5 +1,6 @@
 extern crate cc;
 extern crate pkg_config;
+extern crate vcpkg;
 
 use std::env;
 use std::fs;
@@ -10,10 +11,17 @@ const SKIP_FILENAMES: &[&str] = &["crc32_small", "crc64_small"];
 fn main() {
     let target = env::var("TARGET").unwrap();
 
-    println!("cargo:rerun-if-env-changed=LZMA_API_STATIC");
     let want_static = env::var("LZMA_API_STATIC").is_ok();
-    if !want_static && pkg_config::probe_library("liblzma").is_ok() {
-        return;
+    println!("Do we want static: {}", want_static);
+    println!("cargo:rerun-if-env-changed=LZMA_API_STATIC");
+    if !want_static {
+        if pkg_config::probe_library("liblzma").is_ok() {
+            return;
+        }
+        if vcpkg::find_package("liblzma").is_ok() {
+            println!("cargo:rustc-link-lib=static=liblzma");
+            return;
+        }
     }
 
     let include_dir = env::current_dir().unwrap().join("xz/src/liblzma/api");
@@ -55,8 +63,8 @@ fn main() {
     if !target.ends_with("msvc") {
         build.flag("-std=c99").flag("-pthread");
     }
-
     build.compile("liblzma.a");
+    println!("cargo:rustc-link-lib=static=lzma");
 }
 
 fn read_dir_files(dir: &str) -> impl Iterator<Item = PathBuf> {

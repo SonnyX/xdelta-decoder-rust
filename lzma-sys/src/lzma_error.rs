@@ -1,8 +1,5 @@
 use std::convert::From;
 use std::result::Result;
-use std::error;
-use std::fmt;
-use std::error::Error as StdError;
 use std::io::Error as IoError;
 
 use super::{lzma_ret};
@@ -29,18 +26,10 @@ pub enum LzmaError {
 	Other,
 }
 
-impl fmt::Display for LzmaError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			LzmaError::Io(ref err) => write!(f, "{}", err),
-			_ => write!(f, "{}", self.description()),
-		}
-	}
-}
-
-impl StdError for LzmaError {
-	fn description(&self) -> &str {
-		match *self {
+impl std::fmt::Display for LzmaError {
+	#[inline(always)]
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		let details = match *self {
 			LzmaError::Mem => "Memory allocation failed",
 			LzmaError::MemLimit => "Memory limit would be violated",
 			LzmaError::Format => "XZ magic bytes were not found",
@@ -49,16 +38,10 @@ impl StdError for LzmaError {
 			LzmaError::Buf => "Data look like it was truncated or possibly corrupt",
 			LzmaError::Io(..) => "IO error",
 			LzmaError::Other => "Unknown error",
-		}
+		};
+		write!(f,"{}", details)
 	}
-
-	fn cause(&self) -> Option<&error::Error> {
-		match *self {
-			LzmaError::Io(ref err) => Some(err),
-			_ => None,
-		}
-	}
-}
+  }
 
 impl From<IoError> for LzmaError {
 	fn from(err: IoError) -> LzmaError {

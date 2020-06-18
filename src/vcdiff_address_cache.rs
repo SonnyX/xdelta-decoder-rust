@@ -19,16 +19,6 @@ impl AddressCache {
         }
     }
 
-    pub fn reset(&mut self) {
-        for v in &mut self.near {
-            *v = 0;
-        }
-        for v in &mut self.same {
-            *v = 0;
-        }
-        self.next_slot = 0;
-    }
-
     pub fn update(&mut self, addr: u64) {
         self.near[self.next_slot] = addr;
         self.next_slot = (self.next_slot + 1) % self.near.len();
@@ -83,31 +73,5 @@ impl AddressCache {
 
         self.update(res.1);
         Ok(res)
-    }
-
-    pub fn encode(&mut self, addr: u64, here: u64) -> (u64, u8) {
-        /* Attempt to find the address mode that yields the
-         * smallest integer value for "d", the encoded address
-         * value, thereby minimizing the encoded size of the
-         * address. */
-        let mut best = (addr, VCD_SELF);
-
-        if here - addr < best.0 {
-            best = (here - addr, VCD_HERE);
-        }
-
-        for (i, &near) in self.near.iter().enumerate() {
-            if addr > near && addr - near < best.0 {
-                best = (addr - near, (i as u8) + 2);
-            }
-        }
-
-        let idx = (addr % (self.same.len() as u64)) as usize;
-        if self.same[idx] == addr {
-            best = ((idx % 256) as u64, (self.near.len() + 2 + idx / 256) as u8)
-        }
-
-        self.update(best.0);
-        best
     }
 }

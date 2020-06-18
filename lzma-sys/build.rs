@@ -10,6 +10,7 @@ const SKIP_FILENAMES: &[&str] = &["crc32_small", "crc64_small"];
 
 fn main() {
     let target = env::var("TARGET").unwrap();
+    let current_dir = env::current_dir().unwrap();
 
     let want_static = env::var("LZMA_API_STATIC").is_ok();
     println!("Do we want static: {}", want_static);
@@ -24,7 +25,7 @@ fn main() {
         }
     }
 
-    let include_dir = env::current_dir().unwrap().join("xz/src/liblzma/api");
+    let include_dir = current_dir.join("xz/src/liblzma/api");
     println!("cargo:include={}", include_dir.display());
 
     let src_files = [
@@ -39,8 +40,8 @@ fn main() {
     .iter()
     .flat_map(|dir| read_dir_files(dir))
     .chain(vec![
-        "xz/src/common/tuklib_cpucores.c".into(),
-        "xz/src/common/tuklib_physmem.c".into(),
+        current_dir.join("xz/src/common/tuklib_cpucores.c").into(),
+        current_dir.join("xz/src/common/tuklib_physmem.c").into(),
     ]);
 
     let mut build = cc::Build::new();
@@ -49,16 +50,16 @@ fn main() {
         .files(src_files)
         // all C preproc defines are in `./config.h`
         .define("HAVE_CONFIG_H", "1")
-        .include("xz/src/liblzma/api")
-        .include("xz/src/liblzma/lzma")
-        .include("xz/src/liblzma/lz")
-        .include("xz/src/liblzma/check")
-        .include("xz/src/liblzma/simple")
-        .include("xz/src/liblzma/delta")
-        .include("xz/src/liblzma/common")
-        .include("xz/src/liblzma/rangecoder")
-        .include("xz/src/common")
-        .include("./");
+        .include(current_dir.join("xz/src/liblzma/api"))
+        .include(current_dir.join("xz/src/liblzma/lzma"))
+        .include(current_dir.join("xz/src/liblzma/lz"))
+        .include(current_dir.join("xz/src/liblzma/check"))
+        .include(current_dir.join("xz/src/liblzma/simple"))
+        .include(current_dir.join("xz/src/liblzma/delta"))
+        .include(current_dir.join("xz/src/liblzma/common"))
+        .include(current_dir.join("xz/src/liblzma/rangecoder"))
+        .include(current_dir.join("xz/src/common"))
+        .include(current_dir);
 
     if !target.ends_with("msvc") {
         build.flag("-std=c99").flag("-pthread");

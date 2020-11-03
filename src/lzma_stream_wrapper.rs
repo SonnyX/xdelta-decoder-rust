@@ -1,19 +1,19 @@
 //! Wraps the underlying FFI struct `lzma_stream` to provide various safety guarantees, like the Send trait.
 
-use super::{lzma_end, lzma_code, lzma_action, lzma_auto_decoder, lzma_stream};
+use super::{lzma_end, lzma_code, lzma_auto_decoder, lzma_stream, lzma_ret};
 use lzma_error::{LzmaError, LzmaLibResult};
+use lzma_action::LzmaAction;
 use std::ptr;
 use std::ops::Drop;
+use std::mem;
 
-#[derive(Debug)]
 pub struct LzmaStreamWrapper {
 	stream: lzma_stream,
 }
 
-#[derive(Debug)]
 pub struct LzmaCodeResult {
 	/// The return value of lzma_code
-	pub ret: LzmaLibResult,
+	pub ret: Result<lzma_ret, LzmaError>,
 	/// The number of bytes read from input
 	pub bytes_read: usize,
 	/// The number of bytes written to output
@@ -30,19 +30,18 @@ unsafe impl Send for LzmaStreamWrapper {}
 impl LzmaStreamWrapper {
 	pub fn new() -> LzmaStreamWrapper {
 		LzmaStreamWrapper {
-			stream: lzma_stream::new(),
+			stream: unsafe { lzma_stream::from(mem::zeroed()) },
 		}
 	}
 
 	pub fn stream_decoder(&mut self, memlimit: u64, flags: u32) -> Result<(), LzmaError> {
-		unsafe {
-			LzmaLibResult::from(lzma_auto_decoder(&mut self.stream, memlimit, flags)).map(|_| ())
-		}
+		let lzma_ret = unsafe { lzma_auto_decoder(&mut self.stream, memlimit, flags) };
+		LzmaLibResult::from(lzma_ret).map(|_| ())
 	}
 
 	/// Pointers to input and output are given to liblzma during execution of this function,
 	/// but they are removed before returning.  So that should keep everything safe.
-	pub fn code(&mut self, input: &[u8], output: &mut [u8], action: lzma_action) -> LzmaCodeResult {
+	pub fn code(&mut self, input: &[u8], output: &mut [u8], action: LzmaAction) -> LzmaCodeResult {
 		// Prepare lzma_stream
 		self.stream.next_in = input.as_ptr();
 		self.stream.avail_in = input.len();
@@ -50,11 +49,11 @@ impl LzmaStreamWrapper {
 		self.stream.avail_out = output.len();
 		// Execute lzma_code and get results
 		let mut ret = unsafe {
-			LzmaLibResult::from(lzma_code(&mut self.stream, action))
+			LzmaLibResult::from(lzma_code(&mut self.stream, action.into()))
 		};
     while ret.is_ok() && self.stream.avail_in > 0 {
       ret = unsafe {
-			  LzmaLibResult::from(lzma_code(&mut self.stream, action))
+			  LzmaLibResult::from(lzma_code(&mut self.stream, action.into()))
 		  };
     }
 		let bytes_read = input.len() - self.stream.avail_in;

@@ -4,12 +4,16 @@ mod vcdiff_header;
 mod vcdiff_window;
 mod vcdiff_address_cache;
 mod vcdiff_code_table;
+mod lzma_action;
+mod lzma_stream_wrapper;
+mod lzma_error;
 mod reader;
 
 use vcdiff_header::Header;
 use vcdiff_window::Window;
 
-use lzma_sys::*;
+use lzma_sys::{lzma_ret, lzma_end, lzma_code, lzma_auto_decoder, lzma_stream};
+use lzma_action::LzmaAction;
 use lzma_stream_wrapper::LzmaStreamWrapper;
 use reader::Reader;
 
@@ -47,7 +51,7 @@ pub fn decode_file<P: AsRef<Path>>(source_file_path: Option<P>, patch_file_path:
         let size = decode_base7_int(&mut window.data[0..10].iter());
         let mut decoded_data : Vec<u8> = Vec::with_capacity(size.result.unwrap() as usize);
         decoded_data.resize(size.result.unwrap() as usize,0);
-        let result = data_stream.code(&mut window.data[size.bytes_read..], &mut decoded_data, lzma_action::LzmaRun);
+        let result = data_stream.code(&mut window.data[size.bytes_read..], &mut decoded_data, LzmaAction::LzmaRun); // 0 = LzmaRun
         if result.ret.is_ok() {
           window.data = decoded_data;
           window.data_length = size.result.unwrap();
@@ -58,7 +62,7 @@ pub fn decode_file<P: AsRef<Path>>(source_file_path: Option<P>, patch_file_path:
         let size = decode_base7_int(&mut window.instructions[0..10].iter());
         let mut decoded_instructions : Vec<u8> = Vec::with_capacity(size.result.unwrap() as usize);
         decoded_instructions.resize(size.result.unwrap() as usize,0);
-        let result = instructions_stream.code(&mut window.instructions[size.bytes_read..], &mut decoded_instructions, lzma_action::LzmaRun);
+        let result = instructions_stream.code(&mut window.instructions[size.bytes_read..], &mut decoded_instructions, LzmaAction::LzmaRun);
         if result.ret.is_ok() {
           window.instructions = decoded_instructions;
           window.instructions_length = size.result.unwrap();
@@ -69,7 +73,7 @@ pub fn decode_file<P: AsRef<Path>>(source_file_path: Option<P>, patch_file_path:
         let size = decode_base7_int(&mut window.addresses[0..10].iter());
         let mut decoded_addresses : Vec<u8> = Vec::with_capacity(size.result.unwrap() as usize);
         decoded_addresses.resize(size.result.unwrap() as usize,0);
-        let result = addresses_stream.code(&mut window.addresses[size.bytes_read..], &mut decoded_addresses, lzma_action::LzmaRun);
+        let result = addresses_stream.code(&mut window.addresses[size.bytes_read..], &mut decoded_addresses, LzmaAction::LzmaRun);
         if result.ret.is_ok() {
           window.addresses = decoded_addresses;
           window.addresses_length = size.result.unwrap();

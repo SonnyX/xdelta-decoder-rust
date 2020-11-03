@@ -5,4 +5,4 @@ authors = ["Randy von der Weide <randy@vonderweide.nl>"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-lzma-sys = { path = "lzma-sys", version = "0.1.0" }
+lzma-sys = "0.1.17"

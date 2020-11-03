@@ -2,7 +2,7 @@ use std::convert::From;
 use std::result::Result;
 use std::io::Error as IoError;
 
-use super::{lzma_ret};
+use super::lzma_ret;
 
 
 /// An error produced by an operation on LZMA data
@@ -51,23 +51,23 @@ impl From<IoError> for LzmaError {
 
 
 /* Return values from liblzma are converted into this for easier handling */
-pub type LzmaLibResult = Result<lzma_ret, LzmaError>;
+pub struct LzmaLibResult;
 
-impl From<lzma_ret> for LzmaLibResult {
-	fn from(ret: lzma_ret) -> LzmaLibResult {
+impl LzmaLibResult {
+	pub fn from(ret: lzma_ret) -> Result<lzma_ret, LzmaError> {
 		match ret {
-			lzma_ret::LzmaOk => Ok(ret),
-			lzma_ret::LzmaStreamEnd => Ok(ret),
-			lzma_ret::LzmaNoCheck => Ok(ret),
-			lzma_ret::LzmaUnsupportedCheck => Ok(ret), // NOTE: This is an error in some cases.  Not sure how to handle properly.
-			lzma_ret::LzmaGetCheck => Ok(ret),
-			lzma_ret::LzmaMemError => Err(LzmaError::Mem),
-			lzma_ret::LzmaMemlimitError => Err(LzmaError::MemLimit),
-			lzma_ret::LzmaFormatError => Err(LzmaError::Format),
-			lzma_ret::LzmaOptionsError => Err(LzmaError::Options),
-			lzma_ret::LzmaDataError => Err(LzmaError::Data),
-			lzma_ret::LzmaBufError => Err(LzmaError::Buf),
-			_ => Err(LzmaError::Other),
+			0 => Ok(ret), // Ok
+			1 => Ok(ret), // Stream end
+			2 => Ok(ret), // No Check
+			3 => Ok(ret), // Unsupported Check, NOTE: This is an error in some cases.  Not sure how to handle properly.
+			4 => Ok(ret), // Get Check
+			5 => Err(LzmaError::Mem), // Mem Error
+			6 => Err(LzmaError::MemLimit), // Mem limit Error
+			7 => Err(LzmaError::Format), // Format Error
+			8 => Err(LzmaError::Options), //Options Error
+			9 => Err(LzmaError::Data), // Data Error
+			10 => Err(LzmaError::Buf), // Buf Error
+			_ => Err(LzmaError::Other), // Prog Error
 		}
 	}
 }

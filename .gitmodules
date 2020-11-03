@@ -1,3 +1,0 @@
-[submodule "lzma-sys/xz"]
-	path = lzma-sys/xz
-	url = https://git.tukaani.org/xz.git

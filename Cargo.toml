@@ -1,8 +1,8 @@
 [package]
 name = "xdelta"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Randy von der Weide <randy@vonderweide.nl>"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-lzma-sys = "0.1.17"
+lzma-sys = "0.1"

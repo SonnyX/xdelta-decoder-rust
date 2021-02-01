@@ -47,15 +47,19 @@ impl LzmaStreamWrapper {
 		self.stream.avail_in = input.len();
 		self.stream.next_out = output.as_mut_ptr();
 		self.stream.avail_out = output.len();
-		// Execute lzma_code and get results
-		let mut ret = unsafe {
-			LzmaLibResult::from(lzma_code(&mut self.stream, action.into()))
-		};
-    while ret.is_ok() && self.stream.avail_in > 0 {
-      ret = unsafe {
-			  LzmaLibResult::from(lzma_code(&mut self.stream, action.into()))
-		  };
-    }
+
+		let mut ret;
+		loop {
+			// Execute lzma_code and get results
+			ret = unsafe {
+				LzmaLibResult::from(lzma_code(&mut self.stream, action as lzma_sys::lzma_action))
+			};
+
+			if ret.is_err() || self.stream.avail_in <= 0 {
+				break;
+			}
+		}
+
 		let bytes_read = input.len() - self.stream.avail_in;
 		let bytes_written = output.len() - self.stream.avail_out;
 		// Clear pointers from lzma_stream
